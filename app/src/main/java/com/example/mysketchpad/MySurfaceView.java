@@ -10,6 +10,11 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
+import android.widget.Toast;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * author: daxiong9527
@@ -24,9 +29,15 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
     // 触摸的路径
     private Path mPath;
     private Paint mPaint;
+    // 当前的颜色
+    private int mCurColor;
+    // 当前画布
+    private Canvas mCanvas;
     public MySurfaceView(Context context) {
         super(context);
     }
+
+    private List<Path> mAddPath;
 
     public MySurfaceView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -43,8 +54,18 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
         // 设置常亮
         this.setKeepScreenOn(true);
 
+
+
+        mAddPath = new ArrayList<>();
         mPath = new Path();
         mPaint = new Paint();
+        // 默认当前颜色是黑色
+        mCurColor = R.color.black;
+    }
+    // 设置当前颜色
+    public void setmCurColor(int color){
+        Log.d(TAG,"color:"+color);
+        mCurColor = color;
     }
 
     @Override
@@ -66,26 +87,48 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
 
     @Override
     public void run() {
+
         while (mStarDraw) {
-            draw();
+            draw(mPath);
         }
     }
 
     // 绘制
-    private void draw(){
+    private void draw(Path path){
         Log.d(TAG,"draw");
-        Canvas canvas = mSurfaceHolder.lockCanvas();
-        if(null != canvas){
-            canvas.drawColor(Color.WHITE);
+        mCanvas = mSurfaceHolder.lockCanvas();
+
+        if(null != mCanvas){
+            mCanvas.drawColor(Color.WHITE);
             mPaint.setStyle(Paint.Style.STROKE);
             mPaint.setStrokeWidth(10);
-            mPaint.setColor(Color.BLACK);
-            canvas.drawPath(mPath,mPaint);
-
-            mSurfaceHolder.unlockCanvasAndPost(canvas);
+            mPaint.setColor(getResources().getColor(mCurColor));
+            mCanvas.drawPath(path,mPaint);
+            mSurfaceHolder.unlockCanvasAndPost(mCanvas);
         }
-
     }
+    // 清除
+    public void clear(){
+        mPath.reset();
+    }
+    // 撤销
+    public void undo(){
+        mStarDraw = false;
+        Log.d(TAG,"size:"+mAddPath.size());
+        mAddPath.remove(mAddPath.size() - 1);
+        Log.d(TAG,"size:"+mAddPath.size());
+        if(mAddPath.size() > 0){
+            mPath.reset();
+            Iterator<Path> iterator = mAddPath.iterator();
+            while (iterator.hasNext()){
+                Path path = iterator.next();
+                draw(path);
+            }
+        }
+    }
+
+    //
+
 
 
     @Override
@@ -100,18 +143,16 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
                 break;
             case MotionEvent.ACTION_UP:
                 Log.d(TAG,"ACTION_UP");
+                mPath.lineTo(x,y);
+                mAddPath.add(mPath);
                 break;
             case MotionEvent.ACTION_MOVE:
                 Log.d(TAG,"ACTION_MOVE");
                 mPath.lineTo(x , y);
                 break;
-
         }
 
         return true;
-
-
-
 
     }
 }
