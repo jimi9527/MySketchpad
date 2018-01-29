@@ -10,11 +10,10 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
-import android.widget.Toast;
 
 import java.util.ArrayList;
-import java.util.Iterator;
 import java.util.List;
+import java.util.Objects;
 
 /**
  * author: daxiong9527
@@ -30,9 +29,8 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
     private Path mPath;
     private Paint mPaint;
     // 当前的颜色
-    private int mCurColor;
-    // 当前画布
-    private Canvas mCanvas;
+    private int mCurColorId;
+    private final Object mDrawWaiter = new Object();
     public MySurfaceView(Context context) {
         super(context);
     }
@@ -58,12 +56,12 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
         mAddPath = new ArrayList<>();
         mPath = new Path();
         // 默认当前颜色是黑色
-        mCurColor = R.color.black;
+        mCurColorId = R.color.black;
     }
     // 设置当前颜色
-    public void setmCurColor(int color){
+    public void setmCurColorId(int color){
         Log.d(TAG,"color:"+color);
-        mCurColor = color;
+        mCurColorId = color;
     }
 
     @Override
@@ -71,7 +69,7 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
         Log.d(TAG,"surfaceCreated");
         mStarDraw = true;
         MyPath myPath = new MyPath();
-        myPath.setmColor(mCurColor);
+        myPath.setmColor(mCurColorId);
         myPath.setmPath(mPath);
         mAddPath.add(myPath);
         new Thread(this).start();
@@ -89,31 +87,40 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
 
     @Override
     public void run() {
-        while(mStarDraw) {
+        while (mStarDraw) {
             if (mAddPath.size() > 0) {
+                Canvas canvas = mSurfaceHolder.lockCanvas();
+                canvas.drawColor(Color.WHITE);
                 for (int i = 0; i < mAddPath.size(); i++) {
-                    draw(mAddPath.get(i));
+                    MyPath myPath = mAddPath.get(i);
+                    int color = getResources().getColor(myPath.getmColor());
+                    draw(canvas, myPath.getmPath(), color);
                 }
+                draw(canvas, mPath, getResources().getColor(mCurColorId));
+                mSurfaceHolder.unlockCanvasAndPost(canvas);
+            }
+
+            try {
+                synchronized (mDrawWaiter) {
+                    mDrawWaiter.wait();
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
     }
 
     // 绘制
-    private void draw(MyPath path){
-        Log.d(TAG,"draw");
-        mCanvas = mSurfaceHolder.lockCanvas();
-
-        if(null != mCanvas){
-            mPaint = new Paint();
-            mCanvas.drawColor(Color.WHITE);
-            mPaint.setStyle(Paint.Style.STROKE);
-            mPaint.setStrokeWidth(10);
-            Log.d(TAG,"path.getmColor():"+path.getmColor());
-            mPaint.setColor(getResources().getColor(path.getmColor()));
-            mCanvas.drawPath(path.getmPath(),mPaint);
-            mSurfaceHolder.unlockCanvasAndPost(mCanvas);
-        }
+    private void draw(Canvas canvas, Path path, int color) {
+        Log.d(TAG, "draw");
+        mPaint = new Paint();
+        mPaint.setStyle(Paint.Style.STROKE);
+        mPaint.setStrokeWidth(10);
+        Log.d(TAG, "color: " + color);
+        mPaint.setColor(color);
+        canvas.drawPath(path, mPaint);
     }
+
     // 清除
     public void clear(){
         mPath.reset();
@@ -139,27 +146,32 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
     public boolean onTouchEvent(MotionEvent event) {
         float x = event.getX();
         float y = event.getY();
-        MyPath myPath = new MyPath();
 
         switch (event.getAction()){
             case MotionEvent.ACTION_DOWN:
                 Log.d(TAG,"ACTION_DOWN");
                 mPath.moveTo(x,y);
                 break;
-            case MotionEvent.ACTION_UP:
-                Log.d(TAG,"ACTION_UP");
-                mPath.lineTo(x,y);
+            case MotionEvent.ACTION_UP: {
+                MyPath myPath = new MyPath();
+                Log.d(TAG, "ACTION_UP");
+                mPath.lineTo(x, y);
                 myPath.setmPath(mPath);
-                Log.d(TAG,"mCurColor:"+mCurColor);
-                myPath.setmColor(mCurColor);
+                myPath.setmColor(mCurColorId);
+                Log.d(TAG, "mCurColorId:" + mCurColorId);
                 mAddPath.add(myPath);
+                mPath = new Path();
                 break;
+            }
             case MotionEvent.ACTION_MOVE:
                 Log.d(TAG,"ACTION_MOVE");
                 mPath.lineTo(x , y);
                 break;
         }
 
+        synchronized (mDrawWaiter) {
+            mDrawWaiter.notify();
+        }
         return true;
     }
 

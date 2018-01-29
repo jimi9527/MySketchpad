@@ -5,7 +5,6 @@ import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.HorizontalScrollView;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 
@@ -50,7 +49,7 @@ public class MainActivity extends AppCompatActivity implements View.OnClickListe
                 public void onClick(View view) {
                     int pos = (int) mBtn.getTag();
                     Log.d(TAG,"pos:"+pos);
-                    mMySurfaceView.setmCurColor(mColorArray[pos]);
+                    mMySurfaceView.setmCurColorId(mColorArray[pos]);
                 }
             });
             mLinearAdd.addView(mBtn);
