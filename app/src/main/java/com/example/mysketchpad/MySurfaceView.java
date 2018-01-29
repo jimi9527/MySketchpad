@@ -37,7 +37,7 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
         super(context);
     }
 
-    private List<Path> mAddPath;
+    private List<MyPath> mAddPath;
 
     public MySurfaceView(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -55,10 +55,8 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
         this.setKeepScreenOn(true);
 
 
-
         mAddPath = new ArrayList<>();
         mPath = new Path();
-        mPaint = new Paint();
         // 默认当前颜色是黑色
         mCurColor = R.color.black;
     }
@@ -70,9 +68,13 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
 
     @Override
     public void surfaceCreated(SurfaceHolder surfaceHolder) {
+        Log.d(TAG,"surfaceCreated");
         mStarDraw = true;
+        MyPath myPath = new MyPath();
+        myPath.setmColor(mCurColor);
+        myPath.setmPath(mPath);
+        mAddPath.add(myPath);
         new Thread(this).start();
-
     }
 
     @Override
@@ -87,23 +89,28 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
 
     @Override
     public void run() {
-
-        while (mStarDraw) {
-            draw(mPath);
+        while(mStarDraw) {
+            if (mAddPath.size() > 0) {
+                for (int i = 0; i < mAddPath.size(); i++) {
+                    draw(mAddPath.get(i));
+                }
+            }
         }
     }
 
     // 绘制
-    private void draw(Path path){
+    private void draw(MyPath path){
         Log.d(TAG,"draw");
         mCanvas = mSurfaceHolder.lockCanvas();
 
         if(null != mCanvas){
+            mPaint = new Paint();
             mCanvas.drawColor(Color.WHITE);
             mPaint.setStyle(Paint.Style.STROKE);
             mPaint.setStrokeWidth(10);
-            mPaint.setColor(getResources().getColor(mCurColor));
-            mCanvas.drawPath(path,mPaint);
+            Log.d(TAG,"path.getmColor():"+path.getmColor());
+            mPaint.setColor(getResources().getColor(path.getmColor()));
+            mCanvas.drawPath(path.getmPath(),mPaint);
             mSurfaceHolder.unlockCanvasAndPost(mCanvas);
         }
     }
@@ -113,18 +120,15 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
     }
     // 撤销
     public void undo(){
-        mStarDraw = false;
-        Log.d(TAG,"size:"+mAddPath.size());
         mAddPath.remove(mAddPath.size() - 1);
-        Log.d(TAG,"size:"+mAddPath.size());
-        if(mAddPath.size() > 0){
+      /*  if(mAddPath.size() > 0){
             mPath.reset();
             Iterator<Path> iterator = mAddPath.iterator();
             while (iterator.hasNext()){
                 Path path = iterator.next();
                 draw(path);
             }
-        }
+        }*/
     }
 
     //
@@ -135,6 +139,7 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
     public boolean onTouchEvent(MotionEvent event) {
         float x = event.getX();
         float y = event.getY();
+        MyPath myPath = new MyPath();
 
         switch (event.getAction()){
             case MotionEvent.ACTION_DOWN:
@@ -144,7 +149,10 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
             case MotionEvent.ACTION_UP:
                 Log.d(TAG,"ACTION_UP");
                 mPath.lineTo(x,y);
-                mAddPath.add(mPath);
+                myPath.setmPath(mPath);
+                Log.d(TAG,"mCurColor:"+mCurColor);
+                myPath.setmColor(mCurColor);
+                mAddPath.add(myPath);
                 break;
             case MotionEvent.ACTION_MOVE:
                 Log.d(TAG,"ACTION_MOVE");
@@ -153,6 +161,28 @@ public class MySurfaceView extends SurfaceView implements SurfaceHolder.Callback
         }
 
         return true;
-
     }
+
+
+    class MyPath {
+        Path mPath;
+        int mColor;
+
+        public Path getmPath() {
+            return mPath;
+        }
+
+        public void setmPath(Path mPath) {
+            this.mPath = mPath;
+        }
+
+        public int getmColor() {
+            return mColor;
+        }
+
+        public void setmColor(int mColor) {
+            this.mColor = mColor;
+        }
+    }
+
 }
